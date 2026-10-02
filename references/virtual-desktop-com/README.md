@@ -1,0 +1,11 @@
+# Pinned upstream COM ABI evidence
+
+- Upstream: `https://github.com/Ciantic/VirtualDesktopAccessor`
+- Commit: `7ff9ef827bab9a081421ebb204339dd96475ec1a`
+- Exact source path: `src/interfaces.rs` (copied as `interfaces.rs` here); MIT `LICENSE.txt` is preserved beside it.
+- Source SHA-256: `28370ea56d77d4b6b61555577f72665c801b7fa2a937945e4d72c606f4ced668`
+- License SHA-256: `1b4e6722da7c01b1e615a313060da3c03e8b6e8a666133d27f9f0fa2fd3d10e0`
+
+ABI evidence is in `interfaces.rs`: `IApplicationViewCollection` declares `GetViews`, `GetViewsByZOrder`, `GetViewsByAppUserModelId`, then `GetViewForHwnd` in vtable order (lines 371–384); `IVirtualDesktopManagerInternal` uses IID `53F5CA0B-158F-4124-900C-057158060B27` and declares `MoveViewToDesktop` immediately after `GetDesktopCount` (lines 487–500). This is Ciantic commit `7ff9ef827bab9a081421ebb204339dd96475ec1a`.
+
+For Windows 10, exact Grabacr07 `VirtualDesktop` v5.0.5 commit `a6c69e420307e0717f296501c1e7595977e27b6b` files are copied alongside this README: `src/VirtualDesktop/Interop/Build10240/.interfaces/IVirtualDesktopManagerInternal.cs` (SHA-256 `e51aef9d1724243bb267ad8f3139aad5fb47d7047f3c01fbe3efee6598e49d5c`), `IApplicationViewCollection.cs` (`d0d220f6e37767faec1aa4c3ce845a99731904996b021aaa3bfe185a16bfb5f9`), `IVirtualDesktopPinnedApps.cs` (`9bd7d71ee100bc90299c9951baecec00b8fe602c67d5177b3b8c84150ae28afe`) and MIT `LICENSE` (`0f945c80859ef6b4f6c7cdb123f33170dec5664e2cb6e0fea13de1bf6b08c0ac`). The C# backend uses the audited Windows 10 layout/IIDs and Windows 11 24H2+ static layout/IIDs. It checks `IVirtualDesktopPinnedApps.IsViewPinned` before internal movement. Public `IVirtualDesktopManager.MoveWindowToDesktop` is not used for movement.

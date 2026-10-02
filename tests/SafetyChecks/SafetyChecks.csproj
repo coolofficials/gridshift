@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../ProcessSafety.cs" Link="ProcessSafety.cs" />
+    <Compile Include="../../ProcessTree.cs" Link="ProcessTree.cs" />
+    <Compile Include="../../ProfileOrchestration.cs" Link="ProfileOrchestration.cs" />
+    <Compile Include="../../ManualRelatedAppPolicy.cs" Link="ManualRelatedAppPolicy.cs" />
+    <Compile Include="../../StableTreeState.cs" Link="StableTreeState.cs" />
+    <Compile Include="../../ProcessIdentity.cs" Link="ProcessIdentity.cs" />
+    <Compile Include="../../Models.cs" Link="Models.cs" />
+    <Compile Include="../../VirtualDesktops.cs" Link="VirtualDesktops.cs" />
+    <Compile Include="../../VirtualDesktopCom.cs" Link="VirtualDesktopCom.cs" />
+  </ItemGroup>
+</Project>
