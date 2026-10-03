@@ -36,23 +36,43 @@ jobs:
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 8.0.408
-      - name: Verify toolchain, build, run actual UI, and install/uninstall
+      - name: Verify toolchain, capture native output, build, run actual UI, and install/uninstall
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force artifacts | Out-Null
           $transcript = Join-Path $PWD 'artifacts\windows-validation.log'
           Start-Transcript -LiteralPath $transcript -Force | Out-Null
+          function Invoke-CapturedProcess {
+            param([string]$Name, [string]$FilePath, [string]$Arguments = '')
+            $stdout = Join-Path $PWD "artifacts\$Name.stdout.log"
+            $stderr = Join-Path $PWD "artifacts\$Name.stderr.log"
+            $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -WorkingDirectory $PWD.Path -Wait -PassThru `
+              -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            Write-Host "NATIVE_PROCESS=$Name EXIT_CODE=$($process.ExitCode)"
+            Write-Host "NATIVE_STDOUT_BEGIN=$Name"
+            if (Test-Path $stdout) { Get-Content -LiteralPath $stdout -Encoding utf8 | ForEach-Object { Write-Host $_ } }
+            Write-Host "NATIVE_STDOUT_END=$Name"
+            Write-Host "NATIVE_STDERR_BEGIN=$Name"
+            if (Test-Path $stderr) { Get-Content -LiteralPath $stderr -Encoding utf8 | ForEach-Object { Write-Host $_ } }
+            Write-Host "NATIVE_STDERR_END=$Name"
+            if ($process.ExitCode -ne 0) { throw "$Name exited with code $($process.ExitCode)." }
+          }
           try {
             Write-Output "RUN_URL=https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
             Write-Output "SOURCE_COMMIT=$env:GITHUB_SHA"
-            Write-Output "RUNNER_OS=$env:RUNNER_OS RUNNER_ARCH=$env:RUNNER_ARCH"
-            dotnet --info
+            Write-Output "RUNNER_OS=$env:RUNNER_OS RUNNER_ARCH=$env:RUNNER_ARCH MACHINE=$env:COMPUTERNAME SESSION_ID=$([Diagnostics.Process]::GetCurrentProcess().SessionId) USER_INTERACTIVE=$([Environment]::UserInteractive)"
+            $dotnet = (Get-Command dotnet.exe -ErrorAction Stop).Source
+            Invoke-CapturedProcess -Name 'dotnet-version' -FilePath $dotnet -Arguments '--version'
+            $sdkVersionFile = Join-Path $PWD 'artifacts\dotnet-version.stdout.log'
+            $sdkVersion = (Get-Content -LiteralPath $sdkVersionFile -Raw -Encoding utf8).Trim()
+            if ($sdkVersion -ne '8.0.408') { throw "global.json SDK selection mismatch: expected 8.0.408, selected $sdkVersion." }
+            Write-Output "DOTNET_SDK_SELECTED=$sdkVersion"
+            [void](Invoke-CapturedProcess -Name 'dotnet-info' -FilePath $dotnet -Arguments '--info')
             $archive = Join-Path $env:RUNNER_TEMP 'nsis-3.13.zip'
             $nsisUrl = 'https://downloads.sourceforge.net/project/nsis/NSIS%203/3.13/nsis-3.13.zip?download=1'
             $curl = (Get-Command curl.exe -ErrorAction Stop).Source
-            & $curl --fail --show-error --location --retry 3 --retry-delay 1 --connect-timeout 15 --max-time 90 --output $archive $nsisUrl
-            if ($LASTEXITCODE -ne 0) { throw "Pinned NSIS archive download failed with curl exit code $LASTEXITCODE." }
+            $null = Invoke-CapturedProcess -Name 'nsis-download' -FilePath $curl -Arguments "--fail --show-error --location --retry 3 --retry-delay 1 --connect-timeout 15 --max-time 90 --output `"$archive`" $nsisUrl"
             $archiveItem = Get-Item -LiteralPath $archive
             if ($archiveItem.Length -ne 2363925) { throw "NSIS archive size mismatch: $($archiveItem.Length)." }
             $archiveHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -70,29 +90,70 @@ jobs:
             $env:NSISDIR = $nsisDirectory
             $env:PATH = "$nsisDirectory;$($makensis.Directory.FullName);$env:PATH"
             Write-Output "NSIS_ARCHIVE_BYTES=$($archiveItem.Length) NSIS_ARCHIVE_SHA256=$archiveHash"
-            Write-Output "NSIS_VERSION=$(& makensis -VERSION) NSISDIR=$env:NSISDIR"
-            & .\build-release.ps1
-            if ($LASTEXITCODE -ne 0) { throw "build-release.ps1 failed with exit code $LASTEXITCODE." }
-            & .\tests\InstallerSmoke.ps1
-            if ($LASTEXITCODE -ne 0) { throw "InstallerSmoke.ps1 failed with exit code $LASTEXITCODE." }
-            Write-Output "UI_HARNESS_RESULT=see actual WinForms UiChecks output above; check DeviceDpi and prompt-path PASS lines."
+            Write-Output "NSISDIR=$env:NSISDIR"
+            $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
+            $buildScript = (Resolve-Path -LiteralPath 'build-release.ps1').Path
+            $null = Invoke-CapturedProcess -Name 'build-release' -FilePath $pwsh -Arguments "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$buildScript`""
+            $installerSmoke = (Resolve-Path -LiteralPath 'tests\InstallerSmoke.ps1').Path
+            $null = Invoke-CapturedProcess -Name 'installer-smoke' -FilePath $pwsh -Arguments "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$installerSmoke`""
             Write-Output "INSTALLER_SHA256=$((Get-FileHash -LiteralPath 'artifacts\GridShift-0.2.0-x64-setup.exe' -Algorithm SHA256).Hash.ToLowerInvariant())"
             Write-Output "INSTALLER_BYTES=$((Get-Item -LiteralPath 'artifacts\GridShift-0.2.0-x64-setup.exe').Length)"
-            Write-Output 'DISPLAY_CAPABILITY=hosted Windows runner only; interactive-user DPI/theme/tray/game/real-desktop COM visual validation is not established by this job.'
+            Write-Output 'DISPLAY_CAPABILITY=hosted Windows runner only; user's 100/150/200-percent visual matrix, tray/theme/game/real-desktop COM behavior is not established by this job.'
           }
           finally {
             Stop-Transcript | Out-Null
           }
-      - name: Preserve build, UI, install evidence, and installer
+      - name: Preserve build, native stdout/stderr, UI, install evidence, and installer
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: gridshift-windows-test-validation-${{ github.sha }}
           path: |
             artifacts/windows-validation.log
+            artifacts/*.stdout.log
+            artifacts/*.stderr.log
             artifacts/GridShift-0.2.0-x64-setup.exe
             artifacts/publish/runtime-inventory.txt
             artifacts/uninstall-manifest.nsh
             artifacts/source-file-fingerprints.tsv
+            artifacts/f3-final-current-guard-mutation.json
           if-no-files-found: warn
+          retention-days: 30
+
+  preserve-full-actions-logs:
+    name: Preserve full completed-run Actions logs
+    needs: windows-validation
+    if: always()
+    runs-on: windows-2022
+    timeout-minutes: 10
+    permissions:
+      actions: read
+    steps:
+      - name: Download complete Actions logs for this run
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          $gh = (Get-Command gh.exe -ErrorAction Stop).Source
+          & $gh version 1> artifacts\gh-version.txt 2> artifacts\gh-version.stderr.log
+          if ($LASTEXITCODE -ne 0) { throw "GitHub CLI version check failed with exit code $LASTEXITCODE." }
+          & $gh run view $env:GITHUB_RUN_ID --repo $env:GITHUB_REPOSITORY --log 1> artifacts\actions-full-run.log 2> artifacts\actions-log-download.stderr.log
+          if ($LASTEXITCODE -ne 0) { throw "Full Actions log download failed with exit code $LASTEXITCODE." }
+          $log = Get-Item -LiteralPath artifacts\actions-full-run.log
+          if ($log.Length -lt 1024) { throw "Downloaded full Actions log is unexpectedly short ($($log.Length) bytes)." }
+          Write-Output "FULL_ACTIONS_LOG_BYTES=$($log.Length)"
+          Write-Output "FULL_ACTIONS_LOG_SHA256=$((Get-FileHash -LiteralPath $log.FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
+      - name: Retain full Actions log artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gridshift-windows-full-actions-logs-${{ github.sha }}
+          path: |
+            artifacts/actions-full-run.log
+            artifacts/actions-log-download.stderr.log
+            artifacts/gh-version.txt
+            artifacts/gh-version.stderr.log
+          if-no-files-found: error
           retention-days: 30

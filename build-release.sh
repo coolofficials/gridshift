@@ -2,7 +2,10 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-if ! command -v dotnet >/dev/null 2>&1; then echo "dotnet 8 SDK is required" >&2; exit 1; fi
+if ! command -v dotnet >/dev/null 2>&1; then echo ".NET SDK 8.0.408 is required" >&2; exit 1; fi
+sdk_version="$(dotnet --version)"
+if [[ "$sdk_version" != "8.0.408" ]]; then echo ".NET SDK 8.0.408 is required; selected $sdk_version" >&2; exit 1; fi
+echo "DOTNET_SDK_SELECTED=$sdk_version"
 if ! command -v makensis >/dev/null 2>&1; then echo "NSIS 3.13 makensis is required." >&2; exit 1; fi
 if [[ "$(makensis -VERSION)" != "v3.13" ]]; then echo "NSIS 3.13 is required; found $(makensis -VERSION)." >&2; exit 1; fi
 if [[ -z "${NSISDIR:-}" ]]; then
@@ -26,6 +29,7 @@ python3 build-release-support.py
 python3 tests/ReleasePayloadAudit.py
 python3 build-uninstall-manifest.py artifacts/publish artifacts/uninstall-manifest.nsh
 dotnet run --project tests/SafetyChecks/SafetyChecks.csproj -c Release --no-restore
+python3 tests/VerifyFinalCurrentGuardMutation.py
 dotnet build tests/UiChecks/UiChecks.csproj -c Release -r win-x64 -p:EnableWindowsTargeting=true --no-restore
 echo "NOT RUN: actual WinForms UI checks require Windows x64; cross-build is not UI execution evidence."
 python3 tests/SourceGuardChecks.py

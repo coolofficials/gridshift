@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -138,6 +139,10 @@ internal static class Program
         Drive(dialog, () =>
         {
             dialog.PerformLayout();
+            var screen = Screen.FromControl(dialog);
+            using var process = Process.GetCurrentProcess();
+            Console.WriteLine($"UI_ENVIRONMENT OS={Environment.OSVersion.Version} Machine={Environment.MachineName} Architecture={RuntimeInformation.ProcessArchitecture} SessionId={process.SessionId} UserInteractive={Environment.UserInteractive}");
+            Console.WriteLine($"UI_DISPLAY DeviceDpi={dialog.DeviceDpi} FormBounds={FormatBounds(dialog.Bounds)} Screen={screen.DeviceName} ScreenBounds={FormatBounds(screen.Bounds)} WorkingArea={FormatBounds(screen.WorkingArea)} Primary={screen.Primary} ScreenCount={Screen.AllScreens.Length}");
             var preferred = cleanup.GetPreferredSize(Size.Empty);
             var columns = layout.GetColumnWidths();
             var cell = layout.GetCellPosition(cleanup);
@@ -236,6 +241,9 @@ internal static class Program
         }
         throw new InvalidOperationException($"Button '{text}' was not found.");
     }
+
+    private static string FormatBounds(System.Drawing.Rectangle bounds)
+        => $"{bounds.X},{bounds.Y},{bounds.Width},{bounds.Height}";
 
     private static void Check(bool condition, string name)
     {

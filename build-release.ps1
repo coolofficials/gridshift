@@ -1,6 +1,9 @@
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
-if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) { throw 'Install .NET 8 SDK first.' }
+if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) { throw 'Install pinned .NET SDK 8.0.408 first.' }
+$sdkVersion = (& dotnet --version).Trim()
+if ($LASTEXITCODE -ne 0 -or $sdkVersion -ne '8.0.408') { throw "Pinned .NET SDK 8.0.408 is required; selected $sdkVersion." }
+Write-Output "DOTNET_SDK_SELECTED=$sdkVersion"
 if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) { throw 'Provide the audited NSIS 3.13 makensis on PATH.' }
 $nsisVersion = (& makensis -VERSION).Trim()
 if ($nsisVersion -ne 'v3.13') { throw "NSIS 3.13 is required; found $nsisVersion." }
@@ -30,6 +33,8 @@ python build-uninstall-manifest.py artifacts/publish artifacts/uninstall-manifes
 if ($LASTEXITCODE -ne 0) { throw 'Uninstall manifest generation failed.' }
 dotnet run --project tests/SafetyChecks/SafetyChecks.csproj -c Release --no-restore
 if ($LASTEXITCODE -ne 0) { throw 'Safety checks failed.' }
+python tests/VerifyFinalCurrentGuardMutation.py
+if ($LASTEXITCODE -ne 0) { throw 'Final-current-desktop guard mutation sensitivity check failed.' }
 dotnet run --project tests/UiChecks/UiChecks.csproj -c Release -r win-x64 --no-restore
 if ($LASTEXITCODE -ne 0) { throw 'Windows actual UI checks failed.' }
 python tests/SourceGuardChecks.py

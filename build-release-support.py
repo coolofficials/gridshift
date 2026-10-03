@@ -25,6 +25,9 @@ package_map = {name.lower(): version for name, version in package_names}
 expected_packages = {"microsoft.netcore.app.runtime.win-x64", "microsoft.windowsdesktop.app.runtime.win-x64"}
 if set(package_map) != expected_packages:
     raise SystemExit(f"unexpected publish dependency set: {sorted(package_map)}")
+expected_runtime_version = "8.0.15"
+if set(package_map.values()) != {expected_runtime_version}:
+    raise SystemExit(f"unexpected .NET runtime pack version: {sorted(package_map.values())}; expected {expected_runtime_version}")
 other_packages = [name for name, metadata in deps["libraries"].items() if metadata.get("type") == "package"]
 if other_packages:
     raise SystemExit(f"unexpected NuGet runtime dependencies: {other_packages}")

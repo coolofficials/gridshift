@@ -436,17 +436,40 @@ Check(coordinator.RemoveCreatedDesktop(desktopId, true, false, () => [launcherWi
     && fake.WindowDesktops[launcherWindow] == existingDesktopId,
     "coordinator moves only its own launcher window, returns safely, then verifies empty desktop removal");
 var switchedBackApi = new FakeDesktopApi { Existing = [existingDesktopId, desktopId], CurrentDesktop = desktopId };
-switchedBackApi.CurrentReadHook = count => { if (count == 2) switchedBackApi.CurrentDesktop = desktopId; };
+var switchedBackWindowEnumerations = 0;
+var switchedBackReachedFinalGuard = false;
+switchedBackApi.CurrentReadHook = count =>
+{
+    if (count == 3)
+    {
+        switchedBackReachedFinalGuard = true;
+        switchedBackApi.CurrentDesktop = desktopId;
+    }
+};
 var switchedBackCoordinator = new VirtualDesktopCoordinator(() => switchedBackApi);
-Check(switchedBackCoordinator.RemoveCreatedDesktop(desktopId, true, false, () => [], IntPtr.Zero) is not null
-    && switchedBackApi.Existing.Contains(desktopId) && switchedBackApi.RemoveCalls == 0,
-    "fresh final current-desktop check blocks removal if the user switches back during final enumeration");
+var switchedBackWarning = switchedBackCoordinator.RemoveCreatedDesktop(desktopId, true, false,
+    () => { switchedBackWindowEnumerations++; return []; }, IntPtr.Zero);
+Check(switchedBackWarning is not null && switchedBackReachedFinalGuard && switchedBackWindowEnumerations == 2
+    && switchedBackApi.CurrentReadCalls == 3 && switchedBackApi.Existing.Contains(desktopId) && switchedBackApi.RemoveCalls == 0,
+    "final current-guard after the second window enumeration blocks removal if the user switches back");
 var failedFinalCurrentApi = new FakeDesktopApi { Existing = [existingDesktopId, desktopId], CurrentDesktop = desktopId };
-failedFinalCurrentApi.CurrentReadHook = count => { if (count == 2) throw new InvalidOperationException("current desktop query failed"); };
+var failedFinalWindowEnumerations = 0;
+var failedFinalReachedGuard = false;
+failedFinalCurrentApi.CurrentReadHook = count =>
+{
+    if (count == 3)
+    {
+        failedFinalReachedGuard = true;
+        throw new InvalidOperationException("current desktop query failed");
+    }
+};
 var failedFinalCurrentCoordinator = new VirtualDesktopCoordinator(() => failedFinalCurrentApi);
-Check(failedFinalCurrentCoordinator.RemoveCreatedDesktop(desktopId, true, false, () => [], IntPtr.Zero) is not null
-    && failedFinalCurrentApi.Existing.Contains(desktopId) && failedFinalCurrentApi.RemoveCalls == 0,
-    "final current-desktop query failure fails closed without deleting");
+var failedFinalCurrentWarning = failedFinalCurrentCoordinator.RemoveCreatedDesktop(desktopId, true, false,
+    () => { failedFinalWindowEnumerations++; return []; }, IntPtr.Zero);
+Check(failedFinalCurrentWarning is not null && failedFinalReachedGuard && failedFinalWindowEnumerations == 2
+    && failedFinalCurrentApi.CurrentReadCalls == 3 && failedFinalCurrentApi.Existing.Contains(desktopId)
+    && failedFinalCurrentApi.RemoveCalls == 0,
+    "final current-guard query exception after the second window enumeration fails closed without deleting");
 Check(coordinator.SwitchTo(Guid.NewGuid()) is not null, "missing desktop returns visible warning");
 var foreignDesktopFake = new FakeDesktopApi { Existing = [existingDesktopId, desktopId], CurrentDesktop = existingDesktopId };
 var foreignWindow = new IntPtr(88);

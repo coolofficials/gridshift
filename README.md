@@ -36,7 +36,7 @@
 
 ## 빌드와 검증
 
-필요: .NET 8 SDK, Python 3, NSIS 3.13 (`NSISDIR`에는 `Include/MUI2.nsh`, `Stubs/`, `Plugins/` 포함).
+필요: `.NET SDK 8.0.408` (repository `global.json` exact pin), Python 3, NSIS 3.13 (`NSISDIR`에는 `Include/MUI2.nsh`, `Stubs/`, `Plugins/` 포함). self-contained runtime packs도 `8.0.15`로 고정하며 inventory/audit가 실제 package 버전을 확인합니다.
 
 ```sh
 export NSISDIR="/path/to/nsis"
@@ -52,6 +52,6 @@ $env:NSISDIR = 'C:\Path\To\NSIS'
 
 빌드는 locked restore, win-x64 self-contained publish, runtime/license inventory, 실제 payload와 정확히 일치하는 제거 manifest, payload PE/CodeView/privacy/symbol audit, safety/policy/source/icon/ABI checks, 그리고 실제 NSIS installer를 생성합니다. Release publish에는 PDB/symbol files를 넣지 않으며 deterministic `PathMap`을 설정합니다. SDK apphost의 PE CodeView 경로도 inventory 작성 전에 검사해 task/host 경로 대신 안정된 `/_/GridShift/apphost.pdb` 표기로 정규화합니다. `build-release.ps1`는 Windows에서 실제 WinForms `UiChecks`를 실행합니다. `build-release.sh`는 교차 컴파일만 하며 명시적으로 UI 실행 미수행을 출력합니다. Windows harness는 새 설정 실제 체크 상태, autostart ItemCheck/Save/Cancel, 정상 닫기/강제 종료 동의의 Yes/Save/Cancel, legacy migration Yes→Cancel/No→Save/Yes→Save, 현 DPI에서 desktop-cleanup checkbox의 실제 측정 범위를 검사합니다. macOS 결과는 이 UI 검증을 통과한 증거가 아닙니다. 정책 fake도 실제 Windows COM/runtime 검증을 대신하지 않습니다.
 
-허가된 public test-branch workflow `.github/workflows/windows-test-validation.yml`은 SHA-pinned actions로 hosted Windows 2022에서 `build-release.ps1`의 live WinForms harness를 실행하고, `tests/InstallerSmoke.ps1`로 실제 NSIS silent install/uninstall 및 471개 payload file/hash와 unrelated-file/profile/desktop-ledger 보존을 확인해 raw transcript와 installer를 artifact로 보존합니다. 이 hosted run은 사용자의 interactive display/session을 제공하지 않습니다. 따라서 runner의 `DeviceDpi`/bounds 측정은 해당 runner context의 결과일 뿐 100/150/200% 시각 확인이나 user's tray/game/real COM 동작을 증명하지 않습니다.
+허가된 public test-branch workflow `.github/workflows/windows-test-validation.yml`은 SHA-pinned actions로 hosted Windows 2022에서 pinned .NET SDK 및 runtime pack으로 `build-release.ps1`의 live WinForms harness를 실행하고, `tests/InstallerSmoke.ps1`로 실제 NSIS silent install/uninstall 및 payload file/hash와 unrelated-file/profile/desktop-ledger 보존을 확인합니다. Native SDK/build/UI/audit/install 프로세스 stdout/stderr와 exit codes를 각각 기록하고, 후속 read-only Actions-log job이 전체 build-run Actions logs를 30일 artifact로 보존합니다. 이 hosted run은 사용자의 interactive display/session을 제공하지 않습니다. 따라서 runner의 `DeviceDpi`/bounds/display/session 측정은 해당 runner context의 결과일 뿐 100/150/200% 시각 확인이나 user's tray/game/real COM 동작을 증명하지 않습니다.
 
 Interactive Windows 10/11 x64 PC/VM에서는 별도로 `build-release.ps1` 원시 로그를 보존하고, app launch·설정 round-trip과 실제 desktop API create/move/fallback/cleanup retry/cancel, companion restart/debounce/normal-close/force-off, EXE/Steam launch, DPI 100/150/200%, theme 및 Explorer restart 후 tray/checkbox 시각 행렬을 확인하세요. 세부 게이트는 `tests/Windows-Verification.md`; compile/policy/hosted check를 user visual/runtime 성공으로 확대 주장하지 마세요.

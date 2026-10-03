@@ -1,3 +1,5 @@
+from hashlib import sha256
+import json
 from pathlib import Path
 import re
 import sys
@@ -46,14 +48,42 @@ for relative in ("GridShift.exe", "GridShift.dll"):
     if not (publish / relative).is_file():
         raise SystemExit(f"missing application PE payload: {relative}")
 
+runtime_metadata_path = publish / "GridShift.deps.json"
+with runtime_metadata_path.open(encoding="utf-8") as stream:
+    runtime_metadata = json.load(stream)
+actual_runtime_packs = {
+    library.split("/", 1)[0].removeprefix("runtimepack.").lower(): library.split("/", 1)[1]
+    for library, metadata in runtime_metadata["libraries"].items()
+    if metadata.get("type") == "runtimepack"
+}
+expected_runtime_packs = {
+    "microsoft.netcore.app.runtime.win-x64": "8.0.15",
+    "microsoft.windowsdesktop.app.runtime.win-x64": "8.0.15",
+}
+if actual_runtime_packs != expected_runtime_packs:
+    raise SystemExit(f"actual framework-dependent metadata does not match pinned runtime packs: {actual_runtime_packs}")
 inventory = publish / "runtime-inventory.txt"
 if not inventory.is_file():
     raise SystemExit("release runtime/license inventory is missing")
 lines = inventory.read_text(encoding="utf-8").splitlines()
-listed = {line.split("\t", 1)[0] for line in lines if "\t" in line}
-actual = {path.relative_to(publish).as_posix() for path in files if path != inventory}
-if listed != actual:
-    raise SystemExit(f"runtime inventory does not match actual installer payload: missing={sorted(actual-listed)}, extra={sorted(listed-actual)}")
+expected_runtime_line = "Runtime packages: microsoft.netcore.app.runtime.win-x64 8.0.15, microsoft.windowsdesktop.app.runtime.win-x64 8.0.15"
+if len(lines) < 3 or lines[2].lower() != expected_runtime_line.lower():
+    raise SystemExit("release runtime inventory does not match pinned .NET runtime pack version 8.0.15")
+listed = {}
+for line in lines:
+    if "\t" not in line:
+        continue
+    fields = line.split("\t")
+    if len(fields) != 3 or fields[0] in listed or not fields[1].isdigit() or not re.fullmatch(r"[0-9a-f]{64}", fields[2]):
+        raise SystemExit(f"malformed or duplicate runtime inventory entry: {line}")
+    listed[fields[0]] = (int(fields[1]), fields[2])
+actual = {path.relative_to(publish).as_posix(): path for path in files if path != inventory}
+if listed.keys() != actual.keys():
+    raise SystemExit(f"runtime inventory does not match actual installer payload: missing={sorted(actual.keys()-listed.keys())}, extra={sorted(listed.keys()-actual.keys())}")
+for relative, path in actual.items():
+    data = path.read_bytes()
+    if listed[relative] != (len(data), sha256(data).hexdigest()):
+        raise SystemExit(f"runtime inventory byte-count/hash mismatch: {relative}")
 licenses = [path for path in (publish / "LICENSES").glob("*") if path.is_file()]
 if len(licenses) != 7:
     raise SystemExit(f"unexpected runtime/license notice inventory: {len(licenses)} files")
