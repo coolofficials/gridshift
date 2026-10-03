@@ -42,7 +42,7 @@ try {
     if (-not (Test-Path (Join-Path $installDir 'Uninstall.exe'))) { throw 'Silent installer did not create Uninstall.exe.' }
 
     $installRoot = [IO.Path]::GetFullPath($installDir)
-    Write-Output "INSTALL_SMOKE_ROOT=$installRoot"
+    Write-Output 'INSTALL_SMOKE_ROOT=isolated temporary test directory (absolute path withheld)'
     $installedFiles = @(Get-ChildItem -LiteralPath $installRoot -Recurse -File | ForEach-Object {
         $relative = [IO.Path]::GetRelativePath($installRoot, $_.FullName).Replace('/', '\')
         if ($relative -ne 'Uninstall.exe') { $relative }

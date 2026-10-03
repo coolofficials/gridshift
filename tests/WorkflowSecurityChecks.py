@@ -75,6 +75,8 @@ installer_smoke = (root / "tests" / "InstallerSmoke.ps1").read_text(encoding="ut
 if ("Start-Process -FilePath $installer " not in installer_smoke or "$installer.Path" in installer_smoke
         or '$arguments = "/S /D=$installDir"' not in installer_smoke):
     raise SystemExit("installer smoke must launch its resolved installer path")
+if "INSTALL_SMOKE_ROOT=isolated temporary test directory (absolute path withheld)" not in installer_smoke or 'Write-Output "INSTALL_SMOKE_ROOT=$installRoot"' in installer_smoke:
+    raise SystemExit("installer smoke logs must not disclose the runner's absolute temporary path")
 private_markers = ("/" + "Users" + "/", "/" + "home" + "/", "C:" + chr(92) + "Users" + chr(92),
                    "todo-" + "tracker.md", "AGENTS" + ".md")
 if any(marker.lower() in workflow.lower() for marker in private_markers):
