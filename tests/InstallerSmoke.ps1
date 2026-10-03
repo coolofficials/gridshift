@@ -41,8 +41,10 @@ try {
     if ($installProcess.ExitCode -ne 0) { throw "NSIS install exited with $($installProcess.ExitCode)." }
     if (-not (Test-Path (Join-Path $installDir 'Uninstall.exe'))) { throw 'Silent installer did not create Uninstall.exe.' }
 
-    $installedFiles = @(Get-ChildItem -LiteralPath $installDir -Recurse -File | ForEach-Object {
-        $relative = $_.FullName.Substring($installDir.Length).TrimStart('\')
+    $installRoot = [IO.Path]::GetFullPath($installDir)
+    Write-Output "INSTALL_SMOKE_ROOT=$installRoot"
+    $installedFiles = @(Get-ChildItem -LiteralPath $installRoot -Recurse -File | ForEach-Object {
+        $relative = [IO.Path]::GetRelativePath($installRoot, $_.FullName).Replace('/', '\')
         if ($relative -ne 'Uninstall.exe') { $relative }
     })
     $installedSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -52,7 +54,7 @@ try {
     if ($missing.Count -or $unexpected.Count) { throw "Installed payload mismatch; missing=$($missing -join ','); unexpected=$($unexpected -join ',')." }
 
     foreach ($relative in $entries.Keys) {
-        $file = Join-Path $installDir $relative.Replace('/', '\')
+        $file = Join-Path $installRoot $relative.Replace('/', '\')
         $actual = Get-Item -LiteralPath $file
         if ($actual.Length -ne $entries[$relative].Bytes) { throw "Installed payload byte-count mismatch: $relative." }
         if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entries[$relative].Sha256) {
