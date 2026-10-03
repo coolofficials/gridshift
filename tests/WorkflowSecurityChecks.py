@@ -33,6 +33,8 @@ if "persist-credentials: false" not in workflow or "submodules: false" not in wo
     raise SystemExit("checkout must avoid persistent credentials and submodule execution")
 if "NSIS%203/3.13/nsis-3.13.zip" not in workflow or "ba63dffc4410ee89193e1cb5a41989991bd77c61068da17e3156d136b7b0b3d8" not in workflow:
     raise SystemExit("NSIS toolchain download is not pinned to the audited archive hash")
+if "curl.exe" not in workflow or "--location" not in workflow or "--fail" not in workflow or "Invoke-WebRequest" in workflow:
+    raise SystemExit("NSIS archive download must follow official binary redirects and fail on transport errors")
 if "retention-days: 30" not in workflow or "if: always()" not in workflow:
     raise SystemExit("Windows evidence/installer artifact is not retained on failures")
 private_markers = ("/" + "Users" + "/", "/" + "home" + "/", "C:" + chr(92) + "Users" + chr(92),

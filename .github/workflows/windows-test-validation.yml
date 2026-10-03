@@ -43,7 +43,9 @@ jobs:
             dotnet --info
             $archive = Join-Path $env:RUNNER_TEMP 'nsis-3.13.zip'
             $nsisUrl = 'https://downloads.sourceforge.net/project/nsis/NSIS%203/3.13/nsis-3.13.zip?download=1'
-            Invoke-WebRequest -Uri $nsisUrl -OutFile $archive
+            $curl = (Get-Command curl.exe -ErrorAction Stop).Source
+            & $curl --fail --show-error --location --retry 3 --retry-delay 1 --connect-timeout 15 --max-time 90 --output $archive $nsisUrl
+            if ($LASTEXITCODE -ne 0) { throw "Pinned NSIS archive download failed with curl exit code $LASTEXITCODE." }
             $archiveItem = Get-Item -LiteralPath $archive
             if ($archiveItem.Length -ne 2363925) { throw "NSIS archive size mismatch: $($archiveItem.Length)." }
             $archiveHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
