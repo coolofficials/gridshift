@@ -37,7 +37,7 @@ try {
     Set-Content -LiteralPath $profileFile -Value $profileSentinel -NoNewline -Encoding UTF8
     Set-Content -LiteralPath $ownershipFile -Value $ownershipSentinel -NoNewline -Encoding UTF8
     $arguments = "/S /D=`"$installDir`""
-    $installProcess = Start-Process -FilePath $installer.Path -ArgumentList $arguments -Wait -PassThru
+    $installProcess = Start-Process -FilePath $installer -ArgumentList $arguments -Wait -PassThru
     if ($installProcess.ExitCode -ne 0) { throw "NSIS install exited with $($installProcess.ExitCode)." }
     if (-not (Test-Path (Join-Path $installDir 'Uninstall.exe'))) { throw 'Silent installer did not create Uninstall.exe.' }
 

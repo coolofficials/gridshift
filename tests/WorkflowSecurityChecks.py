@@ -37,6 +37,9 @@ if "curl.exe" not in workflow or "--location" not in workflow or "--fail" not in
     raise SystemExit("NSIS archive download must follow official binary redirects and fail on transport errors")
 if "retention-days: 30" not in workflow or "if: always()" not in workflow:
     raise SystemExit("Windows evidence/installer artifact is not retained on failures")
+installer_smoke = (root / "tests" / "InstallerSmoke.ps1").read_text(encoding="utf-8")
+if "Start-Process -FilePath $installer " not in installer_smoke or "$installer.Path" in installer_smoke:
+    raise SystemExit("installer smoke must launch its resolved installer path")
 private_markers = ("/" + "Users" + "/", "/" + "home" + "/", "C:" + chr(92) + "Users" + chr(92),
                    "todo-" + "tracker.md", "AGENTS" + ".md")
 if any(marker.lower() in workflow.lower() for marker in private_markers):
