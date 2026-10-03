@@ -10,7 +10,8 @@ secret_patterns = [re.compile(rb"gh[pousr]_[A-Za-z0-9_]{20,}"), re.compile(rb"gi
 records = []
 for path in files:
     data = path.read_bytes()
-    if path.suffix.lower() in {".cs", ".csproj", ".md", ".nsi", ".nsh", ".ps1", ".py", ".rs", ".sh", ".txt", ".yml", ".json", ".manifest"} or path.name == ".gitignore":
+    if (path.suffix.lower() in {".cs", ".csproj", ".md", ".nsi", ".nsh", ".ps1", ".py", ".rs", ".sh", ".txt", ".yml", ".json", ".manifest"}
+            or path.name == ".gitignore" or (not path.suffix and b"\0" not in data)):
         fingerprint_data = data.replace(b"\r\n", b"\n")
     else:
         fingerprint_data = data
