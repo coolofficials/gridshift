@@ -42,7 +42,7 @@ python tests/PackageManifestChecks.py
 if ($LASTEXITCODE -ne 0) { throw 'Installer manifest checks failed.' }
 python tests/IconChecks.py
 if ($LASTEXITCODE -ne 0) { throw 'Icon/resource regression checks failed.' }
-makensis -V3 -DOUTFILE=artifacts/GridShift-0.2.0-x64-setup.exe Installer.nsi
+makensis -V3 "-DOUTFILE=artifacts/GridShift-0.2.0-x64-setup.exe" Installer.nsi
 if ($LASTEXITCODE -ne 0) { throw 'NSIS installer build failed.' }
 Get-FileHash artifacts/GridShift-0.2.0-x64-setup.exe -Algorithm SHA256
 (Get-Item artifacts/GridShift-0.2.0-x64-setup.exe).Length

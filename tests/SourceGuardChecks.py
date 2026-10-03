@@ -3,6 +3,8 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 project = (root / "Launcher.csproj").read_text(encoding="utf-8")
 assert 'Compile Remove="tests/**/*.cs;references/**/*.cs"' in project
+windows_build = (root / "build-release.ps1").read_text(encoding="utf-8")
+assert 'makensis -V3 "-DOUTFILE=artifacts/GridShift-0.2.0-x64-setup.exe" Installer.nsi' in windows_build
 
 com = (root / "VirtualDesktopCom.cs").read_text(encoding="utf-8")
 move_window = com.split("public void MoveWindowToDesktop", 1)[1].split("public bool IsWindowPinned", 1)[0]
