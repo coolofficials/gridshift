@@ -42,7 +42,7 @@ jobs:
             Write-Output "RUNNER_OS=$env:RUNNER_OS RUNNER_ARCH=$env:RUNNER_ARCH"
             dotnet --info
             $archive = Join-Path $env:RUNNER_TEMP 'nsis-3.13.zip'
-            $nsisUrl = 'https://downloads.sourceforge.net/project/nsis/NSIS%203/3.13/nsis-3.13.zip'
+            $nsisUrl = 'https://downloads.sourceforge.net/project/nsis/NSIS%203/3.13/nsis-3.13.zip?download=1'
             Invoke-WebRequest -Uri $nsisUrl -OutFile $archive
             $archiveItem = Get-Item -LiteralPath $archive
             if ($archiveItem.Length -ne 2363925) { throw "NSIS archive size mismatch: $($archiveItem.Length)." }
