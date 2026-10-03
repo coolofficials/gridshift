@@ -56,7 +56,7 @@ internal static class Program
                 list.Items[0].Selected = true;
                 list.Items[0].Checked = false;
                 ButtonByText(dialog, "닫기 요청 켜기/끄기").PerformClick();
-                ButtonByText(dialog, "강제 종료 별도 동의").PerformClick();
+                ButtonByText(dialog, "강제 종료 별도 허용").PerformClick();
                 ButtonByText(dialog, "취소").PerformClick();
             }, ("닫기 요청 설정", 0), ("강제 종료 별도 동의", 0));
         }
@@ -77,7 +77,7 @@ internal static class Program
                 list.Items[0].Selected = true;
                 list.Items[0].Checked = false;
                 ButtonByText(dialog, "닫기 요청 켜기/끄기").PerformClick();
-                ButtonByText(dialog, "강제 종료 별도 동의").PerformClick();
+                ButtonByText(dialog, "강제 종료 별도 허용").PerformClick();
                 ButtonByText(dialog, "저장").PerformClick();
             }, ("닫기 요청 설정", 0), ("강제 종료 별도 동의", 0));
         }
