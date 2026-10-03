@@ -7,11 +7,20 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>GridShift</AssemblyName>
+    <Version>0.2.0</Version>
+    <AssemblyVersion>0.2.0.0</AssemblyVersion>
+    <FileVersion>0.2.0.0</FileVersion>
+    <InformationalVersion>0.2.0</InformationalVersion>
     <RootNamespace>GridShift</RootNamespace>
+    <ApplicationIcon>Assets/gridshift.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>none</DebugType>
+    <PathMap>$(MSBuildProjectDirectory)=/_/GridShift</PathMap>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tests/**/*.cs;references/**/*.cs" />
+    <EmbeddedResource Include="Assets/gridshift.ico" LogicalName="GridShift.Assets.gridshift.ico" />
   </ItemGroup>
 </Project>

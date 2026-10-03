@@ -22,7 +22,8 @@ public sealed record ProfilePollInput(
     string ProfileId,
     ProfileRuntimeState State,
     IReadOnlyCollection<ProcessIdentity> ConfirmedRoots,
-    bool RootActive);
+    bool RootActive,
+    TimeSpan ExitDebounce = default);
 
 public static class ProfileOrchestration
 {
@@ -35,7 +36,8 @@ public static class ProfileOrchestration
         TimeSpan exitGrace)
         => profiles.ToDictionary(profile => profile.ProfileId, profile => Observe(
             profile.State, snapshot, profile.ConfirmedRoots, profile.RootActive,
-            snapshotAvailable, nowUtc, startStability, exitGrace));
+            snapshotAvailable, nowUtc, startStability,
+            profile.ExitDebounce > TimeSpan.Zero ? profile.ExitDebounce : exitGrace));
 
     public static ProfileObservation Observe(
         ProfileRuntimeState state,

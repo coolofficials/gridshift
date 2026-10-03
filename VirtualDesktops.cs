@@ -2,7 +2,7 @@ namespace GridShift;
 
 public enum VirtualDesktopApiKind { Unsupported, Windows10, Windows11_24H2, Windows11_25H2 }
 
-public sealed record DesktopOperation(Guid? DesktopId, string? Warning);
+public sealed record DesktopOperation(Guid? DesktopId, string? Warning, bool Created = false);
 
 public interface IVirtualDesktopApi
 {
@@ -13,6 +13,7 @@ public interface IVirtualDesktopApi
     void MoveWindowToDesktop(IntPtr window, Guid desktopId);
     Guid GetWindowDesktop(IntPtr window);
     bool IsWindowPinned(IntPtr window);
+    void RemoveDesktop(Guid desktopId, Guid fallbackDesktopId);
 }
 
 public static class VirtualDesktopCompatibility
@@ -44,7 +45,7 @@ public sealed class VirtualDesktopCoordinator
             if (Guid.TryParse(profile.DesktopId, out var savedId) && desktops.Contains(savedId)) return new(savedId, null);
             var createdId = api.CreateDesktop();
             profile.DesktopId = createdId.ToString("D");
-            return new(createdId, null);
+            return new(createdId, null, true);
         }
         catch (Exception ex)
         {
@@ -88,6 +89,58 @@ public sealed class VirtualDesktopCoordinator
             return null;
         }
         catch (Exception ex) { return $"GridShift 창을 현재 데스크톱으로 가져오지 못했습니다 ({ex.GetType().Name}: {ex.Message})."; }
+    }
+
+    public string? RemoveCreatedDesktop(Guid targetDesktopId, bool positivelyLauncherCreated, bool sharedWithActiveProfile,
+        Func<IReadOnlyList<IntPtr>> enumerateAllWindows, IntPtr launcherWindow)
+    {
+        try
+        {
+            var api = createApi();
+            if (api is null) return "이 Windows 빌드에서는 데스크톱 정리를 지원하지 않아 그대로 유지합니다.";
+            var desktops = api.GetDesktops();
+            var current = api.GetCurrentDesktop();
+            var windowDesktopIds = ReadWindowDesktopIds(api, enumerateAllWindows());
+            var launcherDesktop = Guid.Empty;
+            var launcherKnown = launcherWindow != IntPtr.Zero && windowDesktopIds.TryGetValue(launcherWindow, out launcherDesktop);
+            if (launcherKnown && !desktops.Contains(launcherDesktop)) return "GridShift 창의 데스크톱 위치를 확인하지 못해 정리를 취소합니다.";
+            var launcherOnTarget = launcherKnown && launcherDesktop == targetDesktopId;
+            var otherWindowDesktopIds = windowDesktopIds.Where(pair => pair.Key != launcherWindow).Select(pair => pair.Value).ToArray();
+            var decision = DesktopCleanupPolicy.Evaluate(targetDesktopId, positivelyLauncherCreated, sharedWithActiveProfile,
+                desktops, true, otherWindowDesktopIds, current);
+            if (!decision.Allowed || decision.FallbackDesktop is not Guid fallback)
+                return decision.Reason;
+            if (decision.MustSwitchBeforeRemoval)
+            {
+                api.SwitchTo(fallback);
+                if (api.GetCurrentDesktop() != fallback) return "다른 데스크톱으로 안전하게 돌아왔는지 확인하지 못해 정리를 취소합니다.";
+            }
+            if (launcherOnTarget)
+            {
+                if (api.IsWindowPinned(launcherWindow)) return "GridShift 창이 모든 데스크톱에 표시되도록 고정되어 있어 정리하지 않았습니다.";
+                api.MoveWindowToDesktop(launcherWindow, fallback);
+                if (api.GetWindowDesktop(launcherWindow) != fallback) return "GridShift 창을 안전한 데스크톱으로 옮겼는지 확인하지 못해 정리를 취소합니다.";
+            }
+            var finalWindowDesktopIds = ReadWindowDesktopIds(api, enumerateAllWindows());
+            var finalDesktops = api.GetDesktops();
+            if (finalWindowDesktopIds.Values.Any(id => !finalDesktops.Contains(id))) return "일부 창의 위치를 다시 확인하지 못해 데스크톱을 그대로 유지합니다.";
+            if (finalWindowDesktopIds.Values.Contains(targetDesktopId)) return "창이 남아 있거나 새로 열려 데스크톱을 그대로 유지합니다.";
+            if (!finalDesktops.Contains(targetDesktopId) || !finalDesktops.Contains(fallback)) return "정리할 데스크톱이나 돌아갈 데스크톱이 바뀌어 작업을 취소합니다.";
+            if (api.GetCurrentDesktop() != fallback) return "현재 데스크톱이 안전한 복귀 대상과 달라져 정리를 취소합니다.";
+            api.RemoveDesktop(targetDesktopId, fallback);
+            if (api.GetDesktops().Contains(targetDesktopId) || api.GetCurrentDesktop() == targetDesktopId)
+                return "데스크톱 삭제를 확인하지 못했습니다. 안전한 다른 데스크톱에 그대로 머뭅니다.";
+            return null;
+        }
+        catch (Exception ex) { return $"데스크톱 정리 API를 확인하지 못해 그대로 유지합니다 ({ex.GetType().Name}: {ex.Message})."; }
+    }
+
+    private static Dictionary<IntPtr, Guid> ReadWindowDesktopIds(IVirtualDesktopApi api, IReadOnlyList<IntPtr> windows)
+    {
+        var result = new Dictionary<IntPtr, Guid>();
+        foreach (var window in windows.Where(window => window != IntPtr.Zero).Distinct())
+            result.Add(window, api.GetWindowDesktop(window));
+        return result;
     }
 
     public string? SwitchTo(Guid desktopId)

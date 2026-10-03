@@ -18,17 +18,17 @@ public static class ManualRelatedAppPolicy
         candidate = null;
         if (processId <= 0 || identity is not ProcessIdentity confirmed || confirmed.ProcessId != processId)
         {
-            reason = "프로세스 identity를 확인할 수 없습니다.";
+            reason = "실행 중인 앱 정보를 확인할 수 없어 창을 열지 않았습니다.";
             return false;
         }
         if (windowHandle == IntPtr.Zero)
         {
-            reason = "프로세스의 창 handle을 확인할 수 없습니다.";
+            reason = "이 앱의 열려 있는 창을 찾지 못했습니다.";
             return false;
         }
         if (!PathsEqual(executable, configuredExecutable))
         {
-            reason = "실행 경로가 설정된 관련 앱과 일치하지 않거나 확인되지 않았습니다.";
+            reason = "선택한 파일이 등록된 앱과 달라 창을 열지 않았습니다.";
             return false;
         }
         candidate = new ManualWindowCandidate(processId, confirmed, Path.GetFullPath(executable!), windowHandle);
@@ -47,7 +47,7 @@ public static class ManualRelatedAppPolicy
             || candidate.Identity.ProcessId != candidate.ProcessId
             || !PathsEqual(candidate.Executable, configuredExecutable))
         {
-            reason = "선택 앱의 실행 경로 또는 identity가 설정과 일치하지 않습니다.";
+            reason = "등록된 앱과 창이 달라 안전하게 열 수 없습니다.";
             return false;
         }
         var current = reobserveWindowOwner(candidate.WindowHandle);
@@ -57,7 +57,7 @@ public static class ManualRelatedAppPolicy
             || current.Identity != candidate.Identity
             || !PathsEqual(current.Executable, configuredExecutable))
         {
-            reason = "창 소유 PID, process creation identity 또는 실행 경로가 바뀌었거나 확인되지 않아 안전 동작을 건너뛰었습니다.";
+            reason = "창이 다른 앱으로 바뀌었거나 실행 위치를 확인할 수 없어 아무 동작도 하지 않았습니다.";
             return false;
         }
         action(candidate.WindowHandle);

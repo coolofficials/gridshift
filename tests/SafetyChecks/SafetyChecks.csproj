@@ -11,6 +11,10 @@
     <Compile Include="../../ProcessTree.cs" Link="ProcessTree.cs" />
     <Compile Include="../../ProfileOrchestration.cs" Link="ProfileOrchestration.cs" />
     <Compile Include="../../ManualRelatedAppPolicy.cs" Link="ManualRelatedAppPolicy.cs" />
+    <Compile Include="../../DesktopCleanupPolicy.cs" Link="DesktopCleanupPolicy.cs" />
+    <Compile Include="../../DesktopOwnershipStore.cs" Link="DesktopOwnershipStore.cs" />
+    <Compile Include="../../ProfileDesktopLifecycle.cs" Link="ProfileDesktopLifecycle.cs" />
+    <Compile Include="../../AppPathSelectionPolicy.cs" Link="AppPathSelectionPolicy.cs" />
     <Compile Include="../../StableTreeState.cs" Link="StableTreeState.cs" />
     <Compile Include="../../ProcessIdentity.cs" Link="ProcessIdentity.cs" />
     <Compile Include="../../Models.cs" Link="Models.cs" />

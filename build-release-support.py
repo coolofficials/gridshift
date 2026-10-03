@@ -3,6 +3,11 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sys
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent / "tests"))
+from pe_metadata import codeview_paths
 
 root = Path(__file__).resolve().parent
 publish = root / "artifacts" / "publish"
@@ -24,6 +29,17 @@ other_packages = [name for name, metadata in deps["libraries"].items() if metada
 if other_packages:
     raise SystemExit(f"unexpected NuGet runtime dependencies: {other_packages}")
 cache = Path(os.environ.get("NUGET_PACKAGES", Path.home() / ".nuget" / "packages"))
+
+for relative in ("GridShift.exe", "GridShift.dll"):
+    path = publish / relative
+    data = bytearray(path.read_bytes())
+    for start, end, current in codeview_paths(data):
+        if not current.startswith(b"/_/GridShift/"):
+            stable = b"/_/GridShift/apphost.pdb"
+            if len(stable) > len(current):
+                raise SystemExit(f"cannot safely normalize CodeView path in {relative}")
+            data[start:end] = stable + b"\0" * (len(current) - len(stable))
+    path.write_bytes(data)
 
 components = [
     ("microsoft.netcore.app.runtime.win-x64", "LICENSE.TXT", "Microsoft.NETCoreApp-LICENSE.txt"),

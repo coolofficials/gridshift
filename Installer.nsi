@@ -1,11 +1,11 @@
 Unicode True
 !include "MUI2.nsh"
 
-!define PRODUCT_NAME "GridShift — 게임·관련 앱 런처"
-!define PRODUCT_VERSION "0.1.0"
+!define PRODUCT_NAME "GridShift — 게임 시작 런처"
+!define PRODUCT_VERSION "0.2.0"
 !define PRODUCT_PUBLISHER "GridShift contributors"
 !ifndef OUTFILE
-  !define OUTFILE "artifacts/GridShift-0.1.0-x64-setup.exe"
+  !define OUTFILE "artifacts/GridShift-0.2.0-x64-setup.exe"
 !endif
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
@@ -15,6 +15,9 @@ InstallDir "$LOCALAPPDATA\Programs\GridShift"
 InstallDirRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\GridShift" "InstallLocation"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
+Icon "Assets\gridshift.ico"
+!define MUI_ICON "Assets\gridshift.ico"
+!define MUI_UNICON "Assets\gridshift.ico"
 ShowInstDetails hide
 ShowUninstDetails hide
 
@@ -52,7 +55,7 @@ Section "GridShift 설치" SEC_MAIN
   SetOutPath "$INSTDIR"
   File /r "artifacts\publish\*"
   CreateDirectory "$SMPROGRAMS\GridShift"
-  CreateShortcut "$SMPROGRAMS\GridShift\GridShift.lnk" "$INSTDIR\GridShift.exe"
+  CreateShortcut "$SMPROGRAMS\GridShift\GridShift.lnk" "$INSTDIR\GridShift.exe" "" "$INSTDIR\GridShift.exe" 0
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\GridShift" "DisplayName" "${PRODUCT_NAME}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\GridShift" "DisplayVersion" "${PRODUCT_VERSION}"

@@ -1,67 +1,57 @@
-# GridShift 0.1.0 — 게임과 함께 여는 나만의 작업 공간
+# GridShift 0.2.0 — 게임 시작과 작업 공간
 
-게임을 실행하고, 게임 주변의 앱은 필요할 때 직접 불러오세요. GridShift는 한국어 Windows tray 중심 게임 런처입니다. 프로필마다 게임 실행 정보, 자동 동반 앱, **게임과 완전히 분리된 수동 관련 앱**, 선택적 가상 데스크톱 설정을 저장합니다.
+게임을 중심으로 앱을 준비하고, 시작·대기·오류 상태를 한국어로 확인하는 Windows 트레이 런처입니다. Windows 10/11 x64 테스트 빌드이며, 게임이나 앱에 코드를 주입하거나 메모리를 읽지 않습니다.
 
-> 테스트 빌드입니다. Windows 10/11 x64 설치 파일은 제공하지만, 이 빌드를 만든 환경은 macOS ARM64입니다. 아래에 적힌 빌드·테스트 외에 Windows에서 실행해 검증한 것처럼 간주하지 말아 주세요.
+> 이 릴리스 후보는 macOS ARM64 교차 빌드 환경에서 생성할 수 있습니다. 아래 정책 테스트와 Windows 설치/runtime 검증은 구분합니다. 실제 데스크톱 COM, 트레이 표시, 실행/제거 동작은 Windows PC/VM에서 확인해야 합니다.
 
-## 설치 파일
+## 설치
 
-- 실제 로컬 installer: `artifacts/GridShift-0.1.0-x64-setup.exe`. 정확한 크기/SHA-256은 이 후보의 build handoff 기록에 포함됩니다.
-- 사용자 범위 설치이며 관리자 권한을 요구하지 않습니다. 코드 서명은 되어 있지 않아 SmartScreen 경고가 나올 수 있습니다. 출처를 확인한 테스트 파일만 실행하세요.
-- 설치 파일은 로컬 publish payload를 포함합니다. 실행 중 런타임을 내려받지 않습니다. 설치 시각의 dependency/license와 모든 payload 파일 해시는 `artifacts/publish/runtime-inventory.txt`에 기록됩니다.
-- 제거는 빌드 시 생성된 exact payload file manifest만 삭제하고, 설치 폴더의 빈 디렉터리만 제거합니다. 사용자 파일과 `%APPDATA%\GridShift\profiles.json`은 보존합니다. license/notice는 설치 폴더의 `LICENSES/`에 있습니다.
+- 로컬 installer: `artifacts/GridShift-0.2.0-x64-setup.exe` (정확한 bytes와 SHA-256은 빌드 증거에 기록).
+- 사용자 범위 설치로 관리자 권한이 필요 없습니다. 코드 서명이 없어 SmartScreen 경고가 날 수 있습니다. 출처를 확인한 테스트 파일만 실행하세요.
+- installer는 publish payload를 포함하며 실행 중 runtime을 내려받지 않습니다. 설치되는 runtime/license 파일 목록과 SHA-256은 `artifacts/publish/runtime-inventory.txt`에 생성됩니다.
+- 제거는 설치 payload의 정확한 파일 목록만 지웁니다. 하위 폴더 전체를 재귀 삭제하지 않으며, 사용자가 추가한 파일/프로필(`%APPDATA%\GridShift\profiles.json`)과 데스크톱 생성 기록은 보존합니다. notices는 설치 폴더 `LICENSES/`에 포함됩니다.
 
-## 2분 시작 가이드
+## 3분 시작
 
-1. GridShift를 시작 메뉴 또는 알림 영역의 아이콘에서 엽니다. 창을 닫거나 최소화하면 런처를 종료하지 않고 tray에 둡니다.
-2. **게임 추가**에서 게임 EXE와 표시 이름을 지정합니다. Steam을 이용한다면 `steam://run/앱ID` 또는 `steam://rungameid/앱ID`도 추가할 수 있습니다. Steam URI는 실행 요청용이며, 실행 감지에는 실제 게임 EXE 경로도 필요합니다.
-3. 게임과 함께 자동으로 시작할 앱만 **자동 동반 설정**에서 별도로 등록합니다. 이 기능은 게임 프로세스 그룹이 30초 안정된 후 누락된 앱을 시작합니다. 종료 설정은 정상 종료 요청과 강제 종료를 분리합니다. 기본은 모두 유지이며, 정상 종료는 별도 opt-in, 강제 종료는 다시 별도의 opt-in입니다.
-4. 메모장, 위키, 음악 플레이어처럼 원할 때만 쓸 앱은 **수동 관련 앱**에 등록하세요. 목록에서 앱을 선택해 **관련 앱 실행** 또는 **관련 앱 활성화**를 누릅니다. 게임이 켜져 있지 않아도 됩니다. 수동 관련 앱은 자동 시작/게임 종료 정리/자동 companion ownership에 절대 편입되지 않습니다.
-5. GridShift tray 아이콘의 메뉴에는 각 게임 실행과 수동 관련 앱 실행/활성화가 표시됩니다. 이 메뉴는 관리 창이 다른 가상 데스크톱에 남아 있을 때도 빠른 실행 경로를 제공합니다. 관리 창 열기 및 수동 관련 앱 창 활성화는 지원되는 빌드에서 선택된 GridShift/앱 창을 현재 데스크톱으로 옮긴 뒤 표시합니다. 이 이동은 사용자 요청으로 선택한 창에만 수행합니다.
-6. **설치 앱 검색**은 uninstall registry에서 실행 경로가 확인되는 앱을 찾습니다. 선택한 앱은 새 게임 프로필 또는 현재 선택된 프로필의 수동 관련 앱으로 등록할 수 있습니다. 목록에 없는 EXE는 게임/수동 관련 앱 편집에서 직접 선택할 수 있습니다.
+1. 시작 메뉴 또는 알림 영역에서 GridShift를 엽니다. 창을 닫으면 종료하지 않고 트레이에 둡니다.
+2. **게임 등록** 또는 **앱 찾기**에서 게임을 선택합니다. 앱 찾기는 설치 앱과 실행 중인 EXE 경로를 보여주며, 직접 선택한 EXE 또는 Windows `.lnk` 바로가기를 등록할 수 있습니다. 실행 파일이 실제 존재하는 `.exe`인지 확인하고 경로를 표시합니다.
+3. Steam 사용자는 프로필의 `steam://run/앱ID` 또는 `steam://rungameid/앱ID`를 선택할 수 있습니다. 프로세스 감지용 EXE 경로도 반드시 지정합니다.
+4. **함께 실행할 앱**은 새 항목을 게임과 함께 열고, 게임이 끝나면 정상 닫기 요청을 보냅니다. 이미 실행 중인 앱은 변경하지 않습니다. force 종료는 기본 꺼짐이며 별도의 사용자 동의가 필요합니다. 기존 항목은 자동으로 바꾸지 않습니다. 선택 항목에 **기존 앱에 닫기 요청 허용**을 눌러 확인하고 저장해야 적용됩니다. 취소하면 기존 설정이 유지됩니다.
+5. 메모장·위키·음악 앱은 **필요할 때 켜는 앱**에 따로 등록하세요. 목록/트레이에서 개별적으로 열거나 실행 중인 창으로 이동할 수 있으며, 게임이 실행 중이지 않아도 됩니다. 자동 실행/게임 종료 정리 대상이 아닙니다.
+6. 선택 게임의 **게임 시작**, **게임 창 보기**, 선택 앱 열기/이동을 사용합니다. 창 아래 상태에는 실행 확인, 잠깐 대기, 실패 이유가 표시됩니다.
 
-## 상태 확인과 창 활성화
+## 속도와 안전
 
-- 게임 프로필 아래에 자동 동반 앱/수동 관련 앱 상태가 따로 나타납니다.
-- **그룹 창 활성화**는 감지된 게임 프로세스 family와 런처가 시작한 자동 companion 창을 찾습니다. 수동 관련 앱은 전용 활성화 버튼이나 tray 메뉴에서 따로 다룹니다.
-- 프로세스는 2초 간격으로 관찰됩니다. 부모 PID만 믿지 않고 process creation time을 포함한 process identity를 사용합니다. game root가 먼저 종료돼도 관찰된 worker가 남으면 같은 세션으로 추적합니다.
-- 수동 관련 앱 창 활성화는 설정된 EXE 경로와 process identity가 확인된 창만 대상으로 합니다. 창을 이동/표시/foreground로 만들기 직전에 매번 HWND 소유 PID, creation identity, 실행 경로를 다시 확인합니다. 경로 접근 불가, 동명이인 EXE, PID 재사용 등 불확실한 상태는 경고와 함께 아무 창 동작도 하지 않습니다.
+- 프로세스 확인은 2초 간격입니다. companion 시작 전 안정성 확인은 2초입니다. 게임 종료 오감지를 막는 debounce는 프로필마다 1–10초, 기본 3초로 설정할 수 있습니다. 실제 반응은 poll 주기만큼 늦을 수 있습니다.
+- 앱 닫기 요청은 UI를 멈추지 않고 최대 10초 기다립니다. 앱이 닫히지 않아도 force 종료 동의가 없으면 그대로 보존합니다. 각 poll과 실행 직전에 process ID/생성 시각/경로/소유 관계/게임 보호 설정을 다시 확인합니다. 다른 프로필의 게임 또는 companion으로 쓰이는 앱은 보호됩니다. 게임이 다시 실행되면 대기 중 종료 요청을 취소합니다.
+- 현재 실행 중인 앱이 이미 있는 경우 GridShift는 그것을 새로 시작하거나 닫지 않습니다. 다른 게임에서도 사용 중인 앱은 그대로 둡니다. 확인할 수 없는 프로세스는 안전을 위해 동작을 보류합니다.
+- 수동 앱 창 활성화는 EXE 경로와 process creation identity를 확인하고, 창을 옮기거나 표시하거나 foreground로 만들기 직전에 HWND 소유 프로세스를 매번 재검증합니다. 확인이 모호하면 창을 건드리지 않고 경고합니다.
 
-## 안전 기본값
+## 가상 데스크톱
 
-- 이미 실행 중이거나 경로/identity가 불확실한 companion은 기존/공유 프로세스로 보고 자동 시작을 건너뜁니다.
-- 게임 종료 뒤 companion 정리를 선택한 경우 먼저 같은 열린 process handle의 PID/경로/creation identity와 소유권·공유/게임 보호 조건을 확인하고 `WM_CLOSE` 정상 종료를 요청합니다. 최대 10초 동안 UI를 막지 않고 기다리며, 매 대기 poll마다 같은 handle과 모든 보호 조건을 다시 확인합니다. 대기 시간 초과 후에도 실행 중인 앱의 강제 종료는 별도의 기본 꺼짐 opt-in이 있을 때만, `TerminateProcess` 직전에 같은 handle과 안전 조건을 재검증한 뒤 시도합니다. 설정 파일에 강제 종료 항목이 없던 기존 프로필도 기본값은 opt-in false입니다. 조건이 바뀌거나 불확실하면 취소하고 프로세스를 보존합니다. 런처를 종료해도 게임이나 앱을 정리하지 않습니다.
-- 모든 프로필의 configured game EXE와 관찰된 game-family identity는 companion 종료와 가상 데스크톱 이동 양쪽에서 보수적으로 보호됩니다.
-- 가상 데스크톱은 Windows 10 build 19041–19045 및 Windows 11 build 26100 UBR 2605+, build 26200 UBR 8117+에서만 private COM backend를 호출합니다. 미지원 빌드/호출 실패는 화면에 경고하고 기존 동작을 유지합니다. 앱은 데스크톱을 자동 삭제하지 않습니다. pinned view는 움직이지 않습니다.
-- 게임/외부 프로그램에 코드 주입, 후킹, 메모리 접근을 하지 않으며 제3자 설정을 변경하지 않습니다.
+- 프로필에서 가상 데스크톱 배치/전환을 선택할 수 있습니다. 기존에 저장된 데스크톱을 재사용하고 없으면 새로 만듭니다. pinned 창은 이동하지 않습니다.
+- **GridShift가 만든 빈 데스크톱만 게임 종료 후 정리**는 별도 선택 사항이며 기본 꺼짐입니다. 별도 로컬 생성 기록, 다른 활성 게임의 미공유, 모든 최상위 창의 위치 확인, 대상 데스크톱의 완전한 비어 있음, 남겨 둘 데스크톱으로 안전하게 돌아갈 수 있음을 모두 확인해야 합니다. 확인 실패, 기존 데스크톱, 다른 앱 창 또는 출처를 알 수 없는 경우 삭제하지 않습니다. GridShift 관리 창만 필요한 경우 남겨 둘 데스크톱으로 옮기며, 외부 창은 옮기거나 닫아 비우지 않습니다.
+- 이 기능은 빌드별 private COM ABI에 의존합니다. Windows 10 build 19041–19045 및 Windows 11 26100 UBR 2605+, 26200 UBR 8117+만 허용합니다. ABI 호출 실패/미지원에서는 데스크톱을 유지하고 경고합니다. 선언 근거와 정확한 method slot/IID/lifetime은 `virtual-desktop-com-audit.md` 및 `references/virtual-desktop-com/`를 참조하세요.
+- 트레이 아이콘은 다중 크기 투명 ICO를 앱 리소스로 사용합니다. 실제 Windows에서 100–250% DPI, 밝고 어두운 테마, Explorer 재시작 뒤의 표시/선명도를 확인해야 합니다.
 
-## 가상 데스크톱 선택 기능
+## 빌드와 검증
 
-게임 프로필 수정에서 **가상 데스크톱 사용** 및 선택적 **배치 후 전환**을 지정할 수 있습니다. GridShift는 저장된 desktop ID가 여전히 존재하면 재사용하고, 아니면 새 desktop을 만듭니다. 알려진 게임 identity family 및 안전 조건을 통과한 launcher-owned companion의 보이는 창만 배치합니다. 배치가 실패하면 자동 전환도 하지 않습니다.
-
-관리 창 또는 사용자가 tray에서 직접 활성화를 선택한 관련 앱은 지원되는 backend에서 현재 데스크톱으로 가져옵니다. tray quick-action 메뉴는 game/related-app 실행 경로를 제공합니다. 다른 빌드에서 관리 창 이동 API가 지원되지 않으면 지속 경고가 나타납니다. COM compatibility 및 실제 Windows 창 동작은 아직 Windows PC에서 검증되지 않았습니다.
-
-## 알려진 한계와 검증 범위
-
-- 현재 후보는 macOS ARM64에서 .NET 8 SDK로 `win-x64` self-contained publish 및 NSIS 3.13 installer를 교차 생성합니다.
-- fake snapshot/clock/termination/desktop backend 정책 회귀와 source guard checks는 빌드에 포함됩니다. 이들은 Windows runtime test를 대신하지 않습니다.
-- 실제 Windows 설치/제거, tray 동작, Steam URI, 게임/companion process handle cleanup, 가상 데스크톱 COM movement/switching, 다중 모니터/pinned view 동작은 Windows 10/11 x64 PC에서 확인해야 합니다.
-- 지원 ABI와 upstream vtable/IID source/license/commit/hash: `virtual-desktop-com-audit.md`, `references/virtual-desktop-com/`. 외부 private COM ABI가 모든 업데이트에서 보장된다고 주장하지 않습니다.
-
-## 소스 빌드
-
-.NET 8 SDK, Python 3, NSIS 3.11+이 필요합니다. NSIS 배포 폴더(`Include/MUI2.nsh`, `Stubs/`, `Plugins/`)를 `NSISDIR`에 지정합니다. NuGet locked restore, self-contained publish, runtime/license inventory, uninstall manifest 및 source/policy tests, installer 생성은 아래 스크립트가 수행하며 자신이 관리하는 이전 publish/installer 출력만 먼저 정리합니다.
+필요: .NET 8 SDK, Python 3, NSIS 3.13 (`NSISDIR`에는 `Include/MUI2.nsh`, `Stubs/`, `Plugins/` 포함).
 
 ```sh
 export NSISDIR="/path/to/nsis"
 ./build-release.sh
 ```
 
-Windows PowerShell에서는:
+Windows PowerShell:
 
 ```powershell
-$env:NSISDIR = 'C:\Program Files (x86)\NSIS'
+$env:NSISDIR = 'C:\Path\To\NSIS'
 .\build-release.ps1
 ```
 
-실제 설치 후 테스트 전용 계정/VM에서 프로필 및 사용자 데이터 보존을 확인하세요. Windows에서 확인한 결과와 macOS 교차 빌드 결과를 구분해 기록해 주세요.
+빌드는 locked restore, win-x64 self-contained publish, runtime/license inventory, 실제 payload와 정확히 일치하는 제거 manifest, payload PE/CodeView/privacy/symbol audit, safety/policy/source/icon/ABI checks, 그리고 실제 NSIS installer를 생성합니다. Release publish에는 PDB/symbol files를 넣지 않으며 deterministic `PathMap`을 설정합니다. SDK apphost의 PE CodeView 경로도 inventory 작성 전에 검사해 task/host 경로 대신 안정된 `/_/GridShift/apphost.pdb` 표기로 정규화합니다. `build-release.ps1`는 Windows에서 실제 WinForms `UiChecks`를 실행합니다. `build-release.sh`는 교차 컴파일만 하며 명시적으로 UI 실행 미수행을 출력합니다. Windows harness는 새 설정 실제 체크 상태, autostart ItemCheck/Save/Cancel, 정상 닫기/강제 종료 동의의 Yes/Save/Cancel, legacy migration Yes→Cancel/No→Save/Yes→Save, 현 DPI에서 desktop-cleanup checkbox의 실제 측정 범위를 검사합니다. macOS 결과는 이 UI 검증을 통과한 증거가 아닙니다. 정책 fake도 실제 Windows COM/runtime 검증을 대신하지 않습니다.
+
+허가된 public test-branch workflow `.github/workflows/windows-test-validation.yml`은 SHA-pinned actions로 hosted Windows 2022에서 `build-release.ps1`의 live WinForms harness를 실행하고, `tests/InstallerSmoke.ps1`로 실제 NSIS silent install/uninstall 및 471개 payload file/hash와 unrelated-file/profile/desktop-ledger 보존을 확인해 raw transcript와 installer를 artifact로 보존합니다. 이 hosted run은 사용자의 interactive display/session을 제공하지 않습니다. 따라서 runner의 `DeviceDpi`/bounds 측정은 해당 runner context의 결과일 뿐 100/150/200% 시각 확인이나 user's tray/game/real COM 동작을 증명하지 않습니다.
+
+Interactive Windows 10/11 x64 PC/VM에서는 별도로 `build-release.ps1` 원시 로그를 보존하고, app launch·설정 round-trip과 실제 desktop API create/move/fallback/cleanup retry/cancel, companion restart/debounce/normal-close/force-off, EXE/Steam launch, DPI 100/150/200%, theme 및 Explorer restart 후 tray/checkbox 시각 행렬을 확인하세요. 세부 게이트는 `tests/Windows-Verification.md`; compile/policy/hosted check를 user visual/runtime 성공으로 확대 주장하지 마세요.

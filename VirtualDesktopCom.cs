@@ -224,6 +224,28 @@ internal sealed class WindowsVirtualDesktopApi : IVirtualDesktopApi
         }
     }
 
+    public void RemoveDesktop(Guid desktopId, Guid fallbackDesktopId)
+    {
+        if (desktopId == fallbackDesktopId) throw new ArgumentException("The fallback desktop must differ from the removed desktop.", nameof(fallbackDesktopId));
+        var manager = GetInternalManager();
+        IntPtr target = IntPtr.Zero;
+        IntPtr fallback = IntPtr.Zero;
+        try
+        {
+            target = FindDesktopPointer(desktopId);
+            fallback = FindDesktopPointer(fallbackDesktopId);
+            if (target == IntPtr.Zero || fallback == IntPtr.Zero)
+                throw new InvalidOperationException("The target or fallback desktop no longer exists.");
+            Check(CallRemoveDesktop(manager, target, fallback), "IVirtualDesktopManagerInternal.RemoveDesktop");
+        }
+        finally
+        {
+            if (fallback != IntPtr.Zero) Marshal.Release(fallback);
+            if (target != IntPtr.Zero) Marshal.Release(target);
+            Release(manager);
+        }
+    }
+
     private Guid GetViewCollectionIid() => kind == VirtualDesktopApiKind.Windows10
         ? new Guid("2C08ADF0-A386-4B35-9250-0FE183476FCC")
         : new Guid("1841C6D7-4F9D-42C0-AF41-8747538F10E5");
@@ -356,6 +378,12 @@ internal sealed class WindowsVirtualDesktopApi : IVirtualDesktopApi
         _ => ((IVirtualDesktopManagerInternalWin11)manager).CreateDesktop(out desktop)
     };
 
+    private int CallRemoveDesktop(object manager, IntPtr desktop, IntPtr fallback) => kind switch
+    {
+        VirtualDesktopApiKind.Windows10 => ((IVirtualDesktopManagerInternalWin10)manager).RemoveDesktop(desktop, fallback),
+        _ => ((IVirtualDesktopManagerInternalWin11)manager).RemoveDesktop(desktop, fallback)
+    };
+
     private int CallSwitchDesktop(object manager, object desktop) => kind switch
     {
         VirtualDesktopApiKind.Windows10 => ((IVirtualDesktopManagerInternalWin10)manager).SwitchDesktop((IVirtualDesktopWin10)desktop),
@@ -455,6 +483,7 @@ internal sealed class WindowsVirtualDesktopApi : IVirtualDesktopApi
         [PreserveSig] int GetAdjacentDesktop(IntPtr desktop, int direction, out IntPtr adjacent);
         [PreserveSig] int SwitchDesktop([MarshalAs(UnmanagedType.Interface)] IVirtualDesktopWin10 desktop);
         [PreserveSig] int CreateDesktop(out IntPtr desktop);
+        [PreserveSig] int RemoveDesktop(IntPtr desktop, IntPtr fallbackDesktop);
     }
 
     [ComImport, Guid("53F5CA0B-158F-4124-900C-057158060B27"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -469,5 +498,7 @@ internal sealed class WindowsVirtualDesktopApi : IVirtualDesktopApi
         [PreserveSig] int SwitchDesktop([MarshalAs(UnmanagedType.Interface)] IVirtualDesktopWin11 desktop);
         [PreserveSig] int SwitchDesktopAndMoveForegroundView([MarshalAs(UnmanagedType.Interface)] IVirtualDesktopWin11 desktop);
         [PreserveSig] int CreateDesktop(out IntPtr desktop);
+        [PreserveSig] int MoveDesktop(IntPtr desktop, uint index);
+        [PreserveSig] int RemoveDesktop(IntPtr desktop, IntPtr fallbackDesktop);
     }
 }

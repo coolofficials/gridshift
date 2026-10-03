@@ -12,6 +12,8 @@ public sealed class GameProfile
     public string SteamUri { get; set; } = "";
     public bool UseVirtualDesktop { get; set; }
     public bool SwitchToVirtualDesktop { get; set; }
+    public bool CleanupCreatedDesktop { get; set; }
+    public int ExitDebounceSeconds { get; set; } = 3;
     public string DesktopId { get; set; } = "";
     public List<Companion> Companions { get; set; } = [];
     public List<RelatedApp> RelatedApps { get; set; } = [];
@@ -22,20 +24,22 @@ public sealed class Companion
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Executable { get; set; } = "";
     public string Arguments { get; set; } = "";
-    public bool StopWhenGameEnds { get; set; }
+    public bool Autostart { get; set; } = true;
+    public bool StopWhenGameEnds { get; set; } = true;
     public bool ForceTerminateAfterGrace { get; set; }
 }
 
-public sealed record CompanionCleanupConfiguration(string Id, string Executable, string Arguments, bool StopWhenGameEnds, bool ForceTerminateAfterGrace)
+public sealed record CompanionCleanupConfiguration(string Id, string Executable, string Arguments, bool Autostart, bool StopWhenGameEnds, bool ForceTerminateAfterGrace)
 {
     public static CompanionCleanupConfiguration Capture(Companion companion)
-        => new(companion.Id, companion.Executable, companion.Arguments, companion.StopWhenGameEnds, companion.ForceTerminateAfterGrace);
+        => new(companion.Id, companion.Executable, companion.Arguments, companion.Autostart, companion.StopWhenGameEnds, companion.ForceTerminateAfterGrace);
 
     public bool Matches(Companion? current)
         => current is not null
             && string.Equals(current.Id, Id, StringComparison.Ordinal)
             && PathsEqual(current.Executable, Executable)
             && string.Equals(current.Arguments, Arguments, StringComparison.Ordinal)
+            && current.Autostart == Autostart
             && current.StopWhenGameEnds == StopWhenGameEnds
             && current.ForceTerminateAfterGrace == ForceTerminateAfterGrace;
 
@@ -62,6 +66,14 @@ public sealed class CompanionEditorDraft
         return detached;
     }
 
+    public Companion? SetAutostart(string id, bool enabled)
+    {
+        var item = items.FirstOrDefault(companion => companion.Id == id);
+        if (item is null) return null;
+        item.Autostart = enabled;
+        return item;
+    }
+
     public Companion? SetStopWhenGameEnds(string id, bool enabled)
     {
         var item = items.FirstOrDefault(companion => companion.Id == id);
@@ -69,6 +81,14 @@ public sealed class CompanionEditorDraft
         item.StopWhenGameEnds = enabled;
         if (!enabled) item.ForceTerminateAfterGrace = false;
         return item;
+    }
+
+    public IReadOnlyList<Companion> EnableLegacyNormalStopWithConsent(IEnumerable<string> ids)
+    {
+        var selected = ids.ToHashSet(StringComparer.Ordinal);
+        var changed = items.Where(item => selected.Contains(item.Id) && !item.StopWhenGameEnds).ToList();
+        foreach (var item in changed) item.StopWhenGameEnds = true;
+        return changed;
     }
 
     public Companion? ToggleForceConsent(string id)
@@ -80,11 +100,15 @@ public sealed class CompanionEditorDraft
     }
 
     public List<Companion> Commit(IEnumerable<(Companion Companion, bool StopWhenGameEnds)> rows)
+        => CommitFull(rows.Select(row => (row.Companion, row.Companion.Autostart, row.StopWhenGameEnds)));
+
+    public List<Companion> CommitFull(IEnumerable<(Companion Companion, bool Autostart, bool StopWhenGameEnds)> rows)
         => rows.Select(row =>
         {
             var draft = items.FirstOrDefault(item => item.Id == row.Companion.Id)
                 ?? throw new InvalidOperationException("Companion draft row is no longer available.");
             var committed = Clone(draft);
+            committed.Autostart = row.Autostart;
             committed.StopWhenGameEnds = row.StopWhenGameEnds;
             if (!committed.StopWhenGameEnds) committed.ForceTerminateAfterGrace = false;
             return committed;
@@ -96,6 +120,7 @@ public sealed class CompanionEditorDraft
             Id = companion.Id,
             Executable = companion.Executable,
             Arguments = companion.Arguments,
+            Autostart = companion.Autostart,
             StopWhenGameEnds = companion.StopWhenGameEnds,
             ForceTerminateAfterGrace = companion.ForceTerminateAfterGrace
         };
@@ -125,7 +150,28 @@ public sealed class ProfileStore
     public ProfileStore(string? path = null) => this.path = path ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GridShift", "profiles.json");
     public List<GameProfile> Load()
     {
-        try { return JsonSerializer.Deserialize<List<GameProfile>>(File.ReadAllText(path)) ?? []; }
+        try
+        {
+            var json = File.ReadAllText(path);
+            var profiles = JsonSerializer.Deserialize<List<GameProfile>>(json) ?? [];
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                var profileElements = document.RootElement.EnumerateArray().ToArray();
+                for (var index = 0; index < Math.Min(profiles.Count, profileElements.Length); index++)
+                {
+                    if (!profileElements[index].TryGetProperty(nameof(GameProfile.Companions), out var companions)
+                        || companions.ValueKind != JsonValueKind.Array) continue;
+                    var companionElements = companions.EnumerateArray().ToArray();
+                    for (var companionIndex = 0; companionIndex < Math.Min(profiles[index].Companions.Count, companionElements.Length); companionIndex++)
+                    {
+                        if (!companionElements[companionIndex].TryGetProperty(nameof(Companion.StopWhenGameEnds), out _))
+                            profiles[index].Companions[companionIndex].StopWhenGameEnds = false;
+                    }
+                }
+            }
+            return profiles;
+        }
         catch (FileNotFoundException) { return []; }
         catch (DirectoryNotFoundException) { return []; }
         catch (JsonException) { return []; }
