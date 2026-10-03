@@ -12,7 +12,7 @@ expected_actions = {
     "actions/upload-artifact": "ea165f8d65b6e75b540449e92b4886f43607fa02",
 }
 uses = re.findall(r"^\s*uses:\s*([^\s#]+)", workflow, re.MULTILINE)
-if len(uses) != 4:
+if len(uses) != 3:
     raise SystemExit(f"unexpected external action count: {len(uses)}")
 for use in uses:
     name, separator, revision = use.partition("@")
@@ -20,21 +20,16 @@ for use in uses:
         raise SystemExit(f"unapproved/unpinned workflow action: {use}")
 if "on:\n  push:\n    branches:\n      - " + branch not in workflow:
     raise SystemExit("workflow is not limited to the authorized test-branch push")
-for forbidden in ("pull_request", "pull_request_target", "workflow_dispatch", "self-hosted", "secrets.", "write-all"):
+for forbidden in ("pull_request", "pull_request_target", "workflow_dispatch", "workflow_run", "self-hosted", "secrets.", "write-all", "GH_TOKEN", "actions: read"):
     if forbidden.lower() in workflow.lower():
-        raise SystemExit(f"forbidden workflow trigger, runner, or secret reference: {forbidden}")
+        raise SystemExit(f"forbidden workflow trigger, runner, or extra token permission: {forbidden}")
 if not re.search(r"(?m)^permissions:\n  contents: read$", workflow):
-    raise SystemExit("workflow must request only read access to repository contents by default")
+    raise SystemExit("workflow must request only read access to repository contents")
 if not re.search(r"(?ms)^  windows-validation:\n.*?^    runs-on: windows-2022\n.*?^    timeout-minutes: (\d+)\n.*?^    permissions:\n      contents: read$", workflow):
     raise SystemExit("build job must use hosted Windows 2022, bounded timeout, and contents read only")
-windows_timeout = int(re.search(r"(?ms)^  windows-validation:\n.*?^    timeout-minutes: (\d+)$", workflow).group(1))
-if not 1 <= windows_timeout <= 60:
-    raise SystemExit(f"Windows build timeout is outside 1–60 minutes: {windows_timeout}")
-if not re.search(r"(?ms)^  preserve-full-actions-logs:\n.*?^    needs: windows-validation\n.*?^    if: always\(\)\n.*?^    runs-on: windows-2022\n.*?^    timeout-minutes: (\d+)\n.*?^    permissions:\n      actions: read$", workflow):
-    raise SystemExit("full-log job must run after the build with Actions read-only access")
-log_timeout = int(re.search(r"(?ms)^  preserve-full-actions-logs:\n.*?^    timeout-minutes: (\d+)$", workflow).group(1))
-if not 1 <= log_timeout <= 15:
-    raise SystemExit(f"Actions-log retrieval timeout is outside 1–15 minutes: {log_timeout}")
+timeout = int(re.search(r"(?ms)^  windows-validation:\n.*?^    timeout-minutes: (\d+)$", workflow).group(1))
+if not 1 <= timeout <= 60:
+    raise SystemExit(f"Windows build timeout is outside 1–60 minutes: {timeout}")
 if "persist-credentials: false" not in workflow or "submodules: false" not in workflow:
     raise SystemExit("checkout must avoid persistent credentials and submodule execution")
 if "core.autocrlf false" not in workflow or "git checkout-index --force --all" not in workflow:
@@ -57,12 +52,10 @@ for required in ("dotnet-info", "build-release", "installer-smoke", "artifacts/*
                 "artifacts/*.stderr.log", "artifacts/f3-final-current-guard-mutation.json"):
     if required not in workflow:
         raise SystemExit(f"workflow artifact is missing durable native/mutation evidence: {required}")
-if "gh run view $env:GITHUB_RUN_ID" not in workflow or "artifacts/actions-full-run.log" not in workflow:
-    raise SystemExit("workflow must preserve the complete post-build Actions run log")
-if "GH_TOKEN: ${{ github.token }}" not in workflow or not re.search(r"(?ms)^  preserve-full-actions-logs:\n.*?^    permissions:\n      actions: read$", workflow):
-    raise SystemExit("only the post-build log job may use the automatic read-only token to download run logs")
+if "Start-Transcript" not in workflow or "artifacts/windows-validation.log" not in workflow:
+    raise SystemExit("orchestration transcript must accompany the explicit native stdout/stderr capture")
 if "retention-days: 30" not in workflow or "if-no-files-found: error" not in workflow or "if: always()" not in workflow:
-    raise SystemExit("Windows evidence/log artifacts must be retained and missing full logs must fail")
+    raise SystemExit("Windows evidence/native process artifacts must be retained and missing evidence must fail")
 for path in ("artifacts/source-file-fingerprints.tsv", "artifacts/publish/runtime-inventory.txt", "artifacts/uninstall-manifest.nsh",
              "artifacts/GridShift-0.2.0-x64-setup.exe"):
     if path not in workflow:
@@ -76,7 +69,7 @@ if "<RuntimeFrameworkVersion>8.0.15</RuntimeFrameworkVersion>" not in project:
     raise SystemExit("self-contained payload runtime framework is not pinned to .NET 8.0.15")
 release_support = (root / "build-release-support.py").read_text(encoding="utf-8")
 payload_audit = (root / "tests" / "ReleasePayloadAudit.py").read_text(encoding="utf-8")
-if 'expected_runtime_version = "8.0.15"' not in release_support or "expected_runtime_line =" not in payload_audit:
+if 'expected_runtime_version = "8.0.15"' not in release_support or "expected_runtime_packs =" not in payload_audit:
     raise SystemExit("actual published runtime packs must be locked and checked against the inventory")
 installer_smoke = (root / "tests" / "InstallerSmoke.ps1").read_text(encoding="utf-8")
 if ("Start-Process -FilePath $installer " not in installer_smoke or "$installer.Path" in installer_smoke
@@ -86,4 +79,4 @@ private_markers = ("/" + "Users" + "/", "/" + "home" + "/", "C:" + chr(92) + "Us
                    "todo-" + "tracker.md", "AGENTS" + ".md")
 if any(marker.lower() in workflow.lower() for marker in private_markers):
     raise SystemExit("workflow source contains private path/task metadata marker")
-print("PASS exact test-branch workflow, SHA-pinned actions, least-privilege log-only Actions read, bounded runners, fixed SDK/runtime, and durable full build/UI/process/Actions evidence")
+print("PASS exact test-branch workflow, SHA-pinned actions, read-only minimal permissions, bounded runner, locked SDK/runtime, and durable full native/UI evidence")

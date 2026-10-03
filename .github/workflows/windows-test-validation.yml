@@ -68,11 +68,11 @@ jobs:
             $sdkVersion = (Get-Content -LiteralPath $sdkVersionFile -Raw -Encoding utf8).Trim()
             if ($sdkVersion -ne '8.0.408') { throw "global.json SDK selection mismatch: expected 8.0.408, selected $sdkVersion." }
             Write-Output "DOTNET_SDK_SELECTED=$sdkVersion"
-            [void](Invoke-CapturedProcess -Name 'dotnet-info' -FilePath $dotnet -Arguments '--info')
+            Invoke-CapturedProcess -Name 'dotnet-info' -FilePath $dotnet -Arguments '--info'
             $archive = Join-Path $env:RUNNER_TEMP 'nsis-3.13.zip'
             $nsisUrl = 'https://downloads.sourceforge.net/project/nsis/NSIS%203/3.13/nsis-3.13.zip?download=1'
             $curl = (Get-Command curl.exe -ErrorAction Stop).Source
-            $null = Invoke-CapturedProcess -Name 'nsis-download' -FilePath $curl -Arguments "--fail --show-error --location --retry 3 --retry-delay 1 --connect-timeout 15 --max-time 90 --output `"$archive`" $nsisUrl"
+            Invoke-CapturedProcess -Name 'nsis-download' -FilePath $curl -Arguments "--fail --show-error --location --retry 3 --retry-delay 1 --connect-timeout 15 --max-time 90 --output `"$archive`" $nsisUrl"
             $archiveItem = Get-Item -LiteralPath $archive
             if ($archiveItem.Length -ne 2363925) { throw "NSIS archive size mismatch: $($archiveItem.Length)." }
             $archiveHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -93,12 +93,12 @@ jobs:
             Write-Output "NSISDIR=$env:NSISDIR"
             $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
             $buildScript = (Resolve-Path -LiteralPath 'build-release.ps1').Path
-            $null = Invoke-CapturedProcess -Name 'build-release' -FilePath $pwsh -Arguments "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$buildScript`""
+            Invoke-CapturedProcess -Name 'build-release' -FilePath $pwsh -Arguments "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$buildScript`""
             $installerSmoke = (Resolve-Path -LiteralPath 'tests\InstallerSmoke.ps1').Path
-            $null = Invoke-CapturedProcess -Name 'installer-smoke' -FilePath $pwsh -Arguments "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$installerSmoke`""
+            Invoke-CapturedProcess -Name 'installer-smoke' -FilePath $pwsh -Arguments "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$installerSmoke`""
             Write-Output "INSTALLER_SHA256=$((Get-FileHash -LiteralPath 'artifacts\GridShift-0.2.0-x64-setup.exe' -Algorithm SHA256).Hash.ToLowerInvariant())"
             Write-Output "INSTALLER_BYTES=$((Get-Item -LiteralPath 'artifacts\GridShift-0.2.0-x64-setup.exe').Length)"
-            Write-Output 'DISPLAY_CAPABILITY=hosted Windows runner only; user's 100/150/200-percent visual matrix, tray/theme/game/real-desktop COM behavior is not established by this job.'
+            Write-Output "DISPLAY_CAPABILITY=hosted Windows runner only; interactive DPI, tray, theme, game, and real-desktop COM behavior are not established by this job."
           }
           finally {
             Stop-Transcript | Out-Null
@@ -117,43 +117,5 @@ jobs:
             artifacts/uninstall-manifest.nsh
             artifacts/source-file-fingerprints.tsv
             artifacts/f3-final-current-guard-mutation.json
-          if-no-files-found: warn
-          retention-days: 30
-
-  preserve-full-actions-logs:
-    name: Preserve full completed-run Actions logs
-    needs: windows-validation
-    if: always()
-    runs-on: windows-2022
-    timeout-minutes: 10
-    permissions:
-      actions: read
-    steps:
-      - name: Download complete Actions logs for this run
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Force artifacts | Out-Null
-          $gh = (Get-Command gh.exe -ErrorAction Stop).Source
-          & $gh version 1> artifacts\gh-version.txt 2> artifacts\gh-version.stderr.log
-          if ($LASTEXITCODE -ne 0) { throw "GitHub CLI version check failed with exit code $LASTEXITCODE." }
-          & $gh run view $env:GITHUB_RUN_ID --repo $env:GITHUB_REPOSITORY --log 1> artifacts\actions-full-run.log 2> artifacts\actions-log-download.stderr.log
-          if ($LASTEXITCODE -ne 0) { throw "Full Actions log download failed with exit code $LASTEXITCODE." }
-          $log = Get-Item -LiteralPath artifacts\actions-full-run.log
-          if ($log.Length -lt 1024) { throw "Downloaded full Actions log is unexpectedly short ($($log.Length) bytes)." }
-          Write-Output "FULL_ACTIONS_LOG_BYTES=$($log.Length)"
-          Write-Output "FULL_ACTIONS_LOG_SHA256=$((Get-FileHash -LiteralPath $log.FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
-      - name: Retain full Actions log artifact
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: gridshift-windows-full-actions-logs-${{ github.sha }}
-          path: |
-            artifacts/actions-full-run.log
-            artifacts/actions-log-download.stderr.log
-            artifacts/gh-version.txt
-            artifacts/gh-version.stderr.log
           if-no-files-found: error
           retention-days: 30
