@@ -1,6 +1,7 @@
 from hashlib import sha256
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -60,9 +61,11 @@ with tempfile.TemporaryDirectory(prefix="gridshift-f3-mutation-") as temporary:
     if source.read_bytes() != original or sha256(source.read_bytes()).hexdigest() != source_hash:
         raise SystemExit("production source changed during isolated mutation test")
 
-    scratch_prefix = str(scratch)
+    scratch_prefix = str(scratch.resolve())
     def redact_scratch(text: str) -> str:
-        return text.replace(scratch_prefix, "<isolated-scratch>").replace(scratch_prefix.replace("\\", "/"), "<isolated-scratch>")
+        for prefix in {scratch_prefix, scratch_prefix.replace("\\", "/"), scratch_prefix.replace("/", "\\")}:
+            text = re.sub(re.escape(prefix), "<isolated-scratch>", text, flags=re.IGNORECASE)
+        return text
 
     evidence = {
         "result": "PASS: production regression rejects removal of the final current-desktop guard",
@@ -81,8 +84,13 @@ with tempfile.TemporaryDirectory(prefix="gridshift-f3-mutation-") as temporary:
         "mutated_stderr": redact_scratch(mutated.stderr),
         "production_source_unchanged": True,
     }
+    evidence_text = json.dumps(evidence, ensure_ascii=False, indent=2) + "\n"
+    private_markers = ("/" + "Users" + "/", "/" + "home" + "/", "C:" + chr(92) + "Users" + chr(92),
+                       "/private/var/folders/")
+    if any(marker.lower() in evidence_text.lower() for marker in private_markers):
+        raise SystemExit("isolated mutation evidence still contains an absolute user or scratch path")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    output_path.write_text(evidence_text, encoding="utf-8")
 
 print(f"PASS final-current guard mutation sensitivity; production SHA-256 unchanged: {source_hash}")
 print(f"PASS isolated mutation evidence: {output_path.relative_to(root).as_posix()}")
