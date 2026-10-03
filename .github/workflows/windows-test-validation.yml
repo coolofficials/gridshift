@@ -93,5 +93,6 @@ jobs:
             artifacts/GridShift-0.2.0-x64-setup.exe
             artifacts/publish/runtime-inventory.txt
             artifacts/uninstall-manifest.nsh
+            artifacts/source-file-fingerprints.tsv
           if-no-files-found: warn
           retention-days: 30
