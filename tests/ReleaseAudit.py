@@ -4,7 +4,7 @@ import re
 
 root = Path(__file__).resolve().parents[1]
 excluded = {".git", "bin", "obj", "artifacts", ".tools", ".tools4"}
-files = sorted(path for path in root.rglob("*") if path.is_file() and not excluded.intersection(path.relative_to(root).parts))
+files = sorted((path for path in root.rglob("*") if path.is_file() and not excluded.intersection(path.relative_to(root).parts)), key=lambda path: path.relative_to(root).as_posix())
 markers = ("/" + "Users" + "/", "/" + "home" + "/", "C:\\" + "Users" + "\\", "todo-" + "tracker.md", "AGENTS" + ".md")
 secret_patterns = [re.compile(rb"gh[pousr]_[A-Za-z0-9_]{20,}"), re.compile(rb"github_pat_[A-Za-z0-9_]{20,}"), re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")]
 records = []
