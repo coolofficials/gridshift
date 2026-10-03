@@ -31,6 +31,8 @@ if not 1 <= timeout <= 60:
     raise SystemExit(f"workflow timeout is outside 1–60 minutes: {timeout}")
 if "persist-credentials: false" not in workflow or "submodules: false" not in workflow:
     raise SystemExit("checkout must avoid persistent credentials and submodule execution")
+if "core.autocrlf false" not in workflow or "git checkout-index --force --all" not in workflow:
+    raise SystemExit("Windows checkout must preserve canonical source bytes for an exact source fingerprint")
 if "NSIS%203/3.13/nsis-3.13.zip" not in workflow or "ba63dffc4410ee89193e1cb5a41989991bd77c61068da17e3156d136b7b0b3d8" not in workflow:
     raise SystemExit("NSIS toolchain download is not pinned to the audited archive hash")
 if "curl.exe" not in workflow or "--location" not in workflow or "--fail" not in workflow or "Invoke-WebRequest" in workflow:
